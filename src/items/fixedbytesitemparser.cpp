@@ -138,7 +138,7 @@ size_t FixedBytesItemParser::parseItem(const char* data, size_t index, size_t si
         assert(!target.contains(name_));
 
         if (has_lsb_)
-            target.emplace(name_, lsb_ * data_uint);
+            target.emplace(name_, lsb_ * (double)data_uint);
         else
             target.emplace(name_, data_uint);
 
@@ -198,7 +198,7 @@ size_t FixedBytesItemParser::parseItem(const char* data, size_t index, size_t si
         assert(!target.contains(name_));
 
         if (has_lsb_)
-            target.emplace(name_, lsb_ * data_int);
+            target.emplace(name_, lsb_ * (double)data_int);
         else
             target.emplace(name_, data_int);
 

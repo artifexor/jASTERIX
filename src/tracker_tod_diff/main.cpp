@@ -17,13 +17,9 @@
 
 #include "jasterix.h"
 #include "jasterix/global.h"
-#include "jsonwriter.h"
 #include "logger.h"
 #include "string_conv.h"
-
-#if USE_OPENSSL
-#include "utils/hashchecker.h"
-#endif
+#include "tracker_tod_diff/toddifferencecalculator.h"
 
 #include <boost/program_options.hpp>
 
@@ -46,25 +42,16 @@ namespace po = boost::program_options;
 
 using namespace std;
 
-extern jASTERIX::JSONWriter* json_writer;
+TodDifferenceCalculator global_tod_calc;
+bool global_ref {false}; // true if ref, false if tst
+bool global_framing {false}; // true if framing, false if nope
 
-jASTERIX::JSONWriter* json_writer{nullptr};
-
-void write_callback(std::unique_ptr<nlohmann::json> data_chunk, size_t num_frames,
-                    size_t num_records, size_t num_errors)
-{
-    //    loginf << "jASTERIX: write_callback " << num_frames << " frames, " << num_records << "
-    //    records, "
-    //           << num_errors << " errors";
-
-    assert(json_writer);
-    json_writer->write(std::move(data_chunk));
-}
-
-void empty_callback(std::unique_ptr<nlohmann::json> data_chunk, size_t num_frames,
+void process_callback(std::unique_ptr<nlohmann::json> data_chunk, size_t num_frames,
                     size_t num_records, size_t num_errors)
 {
     assert(data_chunk);
+    assert(!num_errors);
+    global_tod_calc.process(move(data_chunk), global_ref, global_framing);
 }
 
 int main(int argc, char** argv)
@@ -84,57 +71,34 @@ int main(int argc, char** argv)
 
     tbb::task_scheduler_init guard(std::thread::hardware_concurrency());
 
-    std::string filename;
+    std::string filename_ref;
+    std::string filename_tst;
     std::string framing{""};
     std::string definition_path;
-    std::string only_cats;
+    //std::string only_cats {"62"};
     bool debug{false};
     bool debug_include_framing{false};
-    bool print{false};
-    std::string write_type;
-    std::string write_filename;
-    bool log_performance{false};
+    //bool log_performance{true};
 
     po::options_description desc("Allowed options");
     desc.add_options()("help", "produce help message")(
-        "filename", po::value<std::string>(&filename), "input file name")(
-        "definition_path", po::value<std::string>(&definition_path),
-        "path to jASTERIX definition files")(
-        "framing", po::value<std::string>(&framing),
-        "input framine format, as specified in the framing definitions."
-        " raw/netto is default")(
-        "frame_limit", po::value<int>(&jASTERIX::frame_limit),
-        "number of frames to process with framing, default -1, use -1 to disable.")(
-        "frame_chunk_size", po::value<int>(&jASTERIX::frame_chunk_size),
-        "number of frames to process in one chunk, default 10000, use -1 to disable.")(
-        "data_block_limit", po::value<int>(&jASTERIX::data_block_limit),
-        "number of data blocks to process without framing, default -1, use -1 to disable.")(
-        "data_block_chunk_size", po::value<int>(&jASTERIX::data_block_chunk_size),
-        "number of data blocks to process in one chunk, default 10000, use -1 to disable.")(
-        "data_write_size", po::value<int>(&jASTERIX::data_write_size),
-        "number of frame chunks to write in one file write, default 1, use -1 to disable.")(
-        "debug", po::bool_switch(&debug), "print debug output (only for small files)")(
-        "debug_include_framing", po::bool_switch(&debug_include_framing),
-        "print debug output including framing, debug still has to be set, disable per default")(
-        "single_thread", po::bool_switch(&jASTERIX::single_thread),
-        "process data in single thread")("only_cats", po::value<std::string>(&only_cats),
-                                         "restricts categories to be decoded, e.g. 20,21.")(
-        "log_perf", po::bool_switch(&log_performance), "enable performance log after processing")
-#if USE_OPENSSL
-        ("add_artas_md5", po::bool_switch(&jASTERIX::add_artas_md5_hash), "add ARTAS MD5 hashes")(
-            "check_artas_md5", po::value<std::string>(&check_artas_md5_hash),
-            "add and check ARTAS MD5 hashes (with record data), stating which categories to check, "
-            "e.g. 1,20,21,48")
-#endif
-            ("add_record_data", po::bool_switch(&jASTERIX::add_record_data),
-             "add original record data in hex")("print", po::bool_switch(&print),
-                                                "print JSON output")(
-                "print_indent", po::value<int>(&jASTERIX::print_dump_indent),
-                "intendation of json print, use -1 to disable.")(
-                "write_type", po::value<std::string>(&write_type),
-                "optional write type, e.g. text,zip. needs write_filename.")(
-                "write_filename", po::value<std::string>(&write_filename),
-                "optional write filename, e.g. test.zip.");
+                "filename_ref", po::value<std::string>(&filename_ref), "input reference file name")(
+                "filename_tst", po::value<std::string>(&filename_tst), "input test file name")(
+                "definition_path", po::value<std::string>(&definition_path),
+                "path to jASTERIX definition files")(
+                "framing", po::value<std::string>(&framing),
+                "input framine format, as specified in the framing definitions."
+                " raw/netto is default")(
+                "frame_limit", po::value<int>(&jASTERIX::frame_limit),
+                "number of frames to process with framing, default -1, use -1 to disable.")(
+                "frame_chunk_size", po::value<int>(&jASTERIX::frame_chunk_size),
+                "number of frames to process in one chunk, default 10000, use -1 to disable.")(
+                "data_block_limit", po::value<int>(&jASTERIX::data_block_limit),
+                "number of data blocks to process without framing, default -1, use -1 to disable.")(
+                "data_block_chunk_size", po::value<int>(&jASTERIX::data_block_chunk_size),
+                "number of data blocks to process in one chunk, default 10000, use -1 to disable.")(
+                "single_thread", po::bool_switch(&jASTERIX::single_thread),
+                "process data in single thread");
 
     try
     {
@@ -150,173 +114,128 @@ int main(int argc, char** argv)
     }
     catch (exception& e)
     {
-        logerr << "jASTERIX client: unable to parse command line parameters: \n"
+        logerr << "tracker tod diff: unable to parse command line parameters: \n"
                << e.what() << logendl;
         return -1;
     }
 
-#if USE_OPENSSL
-    if (check_artas_md5_hash.size())
-    {
-        jASTERIX::add_artas_md5_hash = true;
-        jASTERIX::add_record_data = true;
+    std::vector<unsigned int> cat_list {62};
+//    if (only_cats.size())
+//    {
+//        std::vector<std::string> cat_strings;
+//        split(only_cats, ',', cat_strings);
 
-        if (write_type.size())
-        {
-            logerr << "jASTERIX client: writing can not be used while artas md5 checking"
-                   << logendl;
-            return -1;
-        }
+//        int cat;
 
-        std::vector<std::string> cat_strs;
-        split(check_artas_md5_hash, ',', cat_strs);
-
-        int cat;
-        for (auto& cat_str : cat_strs)
-        {
-            cat = std::atoi(cat_str.c_str());
-            if (cat < 1 || cat > 255)
-            {
-                logerr << "jASTERIX client: impossible artas md5 checking cat value '" << cat_str
-                       << "'" << logendl;
-                return -1;
-            }
-            check_artas_md5_categories.push_back(cat);
-        }
-        if (!check_artas_md5_categories.size())
-        {
-            logerr << "jASTERIX client: no valid artas md5 checking cat values given" << logendl;
-            return -1;
-        }
-
-        hash_checker = new HashChecker(framing.size());  // true if framing set
-    }
-#endif
-
-    if (write_type.size())
-    {
-        if (write_type != "text" && write_type != "zip")
-        {
-            logerr << "jASTERIX client: unknown write_type '" << write_type << "'" << logendl;
-            return -1;
-        }
-
-        if (!write_filename.size())
-        {
-            logerr << "jASTERIX client: write_type '" << write_type
-                   << "' requires write_filename to be set" << logendl;
-            return -1;
-        }
-
-        if (write_type == "text")
-            json_writer = new jASTERIX::JSONWriter(jASTERIX::JSON_TEXT, write_filename);
-        else if (write_type == "zip")
-            json_writer = new jASTERIX::JSONWriter(jASTERIX::JSON_ZIP_TEXT, write_filename);
-    }
-
-    std::vector<unsigned int> cat_list;
-    if (only_cats.size())
-    {
-        std::vector<std::string> cat_strings;
-        split(only_cats, ',', cat_strings);
-
-        int cat;
-
-        for (auto& cat_it : cat_strings)
-        {
-            cat = std::atoi(cat_it.c_str());
-            if (cat < 1 || cat > 255)
-            {
-                logerr << "jASTERIX client: impossible cat value '" << cat_it << "'" << logendl;
-                return -1;
-            }
-            cat_list.push_back(static_cast<unsigned int>(cat));
-        }
-    }
+//        for (auto& cat_it : cat_strings)
+//        {
+//            cat = std::atoi(cat_it.c_str());
+//            if (cat < 1 || cat > 255)
+//            {
+//                logerr << "tracker tod diff: impossible cat value '" << cat_it << "'" << logendl;
+//                return -1;
+//            }
+//            cat_list.push_back(static_cast<unsigned int>(cat));
+//        }
+//    }
 
     // check if basic configuration works
     try
     {
-        if (debug)
-            loginf << "jASTERIX client: startup with filename '" << filename << "' framing '"
-                   << framing << "' definition_path '" << definition_path << "' debug " << debug
-                   << logendl;
+        loginf << "tracker tod diff: startup with filename_ref '" << filename_ref << "' filename_tst '" << filename_tst
+               << "' framing '" << framing << "' definition_path '" << definition_path << "' debug " << debug
+               << logendl;
 
-        jASTERIX::jASTERIX asterix(definition_path, print, debug, !debug_include_framing);
+        { // ref
+            loginf << "tracker tod diff: decoding ref data";
 
-        if (cat_list.size())
-        {
-            asterix.decodeNoCategories();
+            jASTERIX::jASTERIX asterix(definition_path, false, debug, !debug_include_framing);
 
-            for (auto cat_it : cat_list)
+            if (cat_list.size())
             {
-                asterix.setDecodeCategory(cat_it, true);
+                asterix.decodeNoCategories();
 
-                if (debug)
-                    loginf << "jASTERIX client: decoding category " << cat_it << logendl;
+                for (auto cat_it : cat_list)
+                    asterix.setDecodeCategory(cat_it, true);
             }
-        }
 
-        boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
+            boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
 
-        if (framing == "netto" || framing == "")
-        {
-            if (json_writer)
-                asterix.decodeFile(filename, write_callback);
-            else  // printing done via flag
-#if USE_OPENSSL
-                if (check_artas_md5_hash.size())
-                asterix.decodeFile(filename, check_callback);
+            global_ref = true;
+            if (framing == "netto" || framing == "")
+            {
+                global_framing = false;
+                asterix.decodeFile(filename_ref, process_callback);
+            }
             else
-                asterix.decodeFile(filename, empty_callback);
-
-#else
-                asterix.decodeFile(filename, empty_callback);
-#endif
-        }
-        else
-        {
-            if (json_writer)
-                asterix.decodeFile(filename, framing, write_callback);
-            else  // printing done via flag
             {
-#if USE_OPENSSL
-                if (check_artas_md5_hash.size())
-                    asterix.decodeFile(filename, framing, check_callback);
-                else
-                    asterix.decodeFile(filename, framing, empty_callback);
-
-#else
-                asterix.decodeFile(filename, framing, empty_callback);
-#endif
+                global_framing = true;
+                asterix.decodeFile(filename_ref, framing, process_callback);
             }
-        }
 
-#if USE_OPENSSL
-        if (hash_checker)
-            hash_checker->printCollisions();
-#endif
+            size_t num_frames = asterix.numFrames();
+            size_t num_records = asterix.numRecords();
 
-        size_t num_frames = asterix.numFrames();
-        size_t num_records = asterix.numRecords();
+            boost::posix_time::time_duration diff =
+                    boost::posix_time::microsec_clock::local_time() - start_time;
 
-        boost::posix_time::time_duration diff =
-            boost::posix_time::microsec_clock::local_time() - start_time;
+            string time_str = to_string(diff.hours()) + "h " + to_string(diff.minutes()) + "m " +
+                    to_string(diff.seconds()) + "s " +
+                    to_string(diff.total_milliseconds() % 1000) + "ms";
 
-        string time_str = to_string(diff.hours()) + "h " + to_string(diff.minutes()) + "m " +
-                          to_string(diff.seconds()) + "s " +
-                          to_string(diff.total_milliseconds() % 1000) + "ms";
+            double seconds = diff.total_milliseconds() / 1000.0;
 
-        double seconds = diff.total_milliseconds() / 1000.0;
-
-        if (log_performance)
-            loginf << "jASTERIX client: decoded " << num_frames << " frames, " << num_records
+            loginf << "tracker tod diff: ref decoded " << num_frames << " frames, " << num_records
                    << " records in " << time_str << ": " << num_frames / seconds << " fr/s, "
                    << num_records / seconds << " rec/s" << logendl;
+        }
+
+        { // tst
+            loginf << "tracker tod diff: decoding tst data";
+
+            jASTERIX::jASTERIX asterix(definition_path, false, debug, !debug_include_framing);
+
+            if (cat_list.size())
+            {
+                asterix.decodeNoCategories();
+
+                for (auto cat_it : cat_list)
+                    asterix.setDecodeCategory(cat_it, true);
+            }
+
+            boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
+
+            global_ref = false;
+            if (framing == "netto" || framing == "")
+            {
+                asterix.decodeFile(filename_tst, process_callback);
+            }
+            else
+            {
+                asterix.decodeFile(filename_tst, framing, process_callback);
+            }
+
+            size_t num_frames = asterix.numFrames();
+            size_t num_records = asterix.numRecords();
+
+            boost::posix_time::time_duration diff =
+                    boost::posix_time::microsec_clock::local_time() - start_time;
+
+            string time_str = to_string(diff.hours()) + "h " + to_string(diff.minutes()) + "m " +
+                    to_string(diff.seconds()) + "s " +
+                    to_string(diff.total_milliseconds() % 1000) + "ms";
+
+            double seconds = diff.total_milliseconds() / 1000.0;
+
+            loginf << "tracker tod diff: tst decoded " << num_frames << " frames, " << num_records
+                   << " records in " << time_str << ": " << num_frames / seconds << " fr/s, "
+                   << num_records / seconds << " rec/s" << logendl;
+        }
+
     }
     catch (exception& ex)
     {
-        logerr << "jASTERIX client: caught exception: " << ex.what() << logendl;
+        logerr << "tracker tod diff: caught exception: " << ex.what() << logendl;
 
         // assert (false);
 
@@ -324,29 +243,16 @@ int main(int argc, char** argv)
     }
     catch (...)
     {
-        logerr << "jASTERIX client: caught exception" << logendl;
+        logerr << "tracker tod diff: caught exception" << logendl;
 
         // assert (false);
 
         return -1;
     }
 
-    if (json_writer)
-    {
-        delete json_writer;
-        json_writer = nullptr;
-    }
+    global_tod_calc.calculate();
 
-#if USE_OPENSSL
-    if (hash_checker)
-    {
-        delete hash_checker;
-        hash_checker = nullptr;
-    }
-#endif
-
-    if (debug)
-        loginf << "jASTERIX client: shutdown" << logendl;
+    loginf << "tracker tod diff: shutdown" << logendl;
 
     return 0;
 }
