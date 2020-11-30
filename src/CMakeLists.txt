@@ -17,5 +17,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/utils/CMakeLists.txt")
 include("${CMAKE_CURRENT_LIST_DIR}/client/CMakeLists.txt")
 include("${CMAKE_CURRENT_LIST_DIR}/test/CMakeLists.txt")
 include("${CMAKE_CURRENT_LIST_DIR}/write/CMakeLists.txt")
+include("${CMAKE_CURRENT_LIST_DIR}/tracker_tod_diff/CMakeLists.txt")
 
 
