@@ -97,35 +97,35 @@ int main(int argc, char** argv)
 
     po::options_description desc("Allowed options");
     desc.add_options()("help", "produce help message")(
-        "filename", po::value<std::string>(&filename), "input file name")(
-        "definition_path", po::value<std::string>(&definition_path),
-        "path to jASTERIX definition files")(
-        "framing", po::value<std::string>(&framing),
-        "input framine format, as specified in the framing definitions."
-        " raw/netto is default")(
-        "frame_limit", po::value<int>(&jASTERIX::frame_limit),
-        "number of frames to process with framing, default -1, use -1 to disable.")(
-        "frame_chunk_size", po::value<int>(&jASTERIX::frame_chunk_size),
-        "number of frames to process in one chunk, default 10000, use -1 to disable.")(
-        "data_block_limit", po::value<int>(&jASTERIX::data_block_limit),
-        "number of data blocks to process without framing, default -1, use -1 to disable.")(
-        "data_block_chunk_size", po::value<int>(&jASTERIX::data_block_chunk_size),
-        "number of data blocks to process in one chunk, default 10000, use -1 to disable.")(
-        "data_write_size", po::value<int>(&jASTERIX::data_write_size),
-        "number of frame chunks to write in one file write, default 1, use -1 to disable.")(
-        "debug", po::bool_switch(&debug), "print debug output (only for small files)")(
-        "debug_include_framing", po::bool_switch(&debug_include_framing),
-        "print debug output including framing, debug still has to be set, disable per default")(
-        "single_thread", po::bool_switch(&jASTERIX::single_thread),
-        "process data in single thread")("only_cats", po::value<std::string>(&only_cats),
-                                         "restricts categories to be decoded, e.g. 20,21.")(
-        "log_perf", po::bool_switch(&log_performance), "enable performance log after processing")
-#if USE_OPENSSL
-        ("add_artas_md5", po::bool_switch(&jASTERIX::add_artas_md5_hash), "add ARTAS MD5 hashes")(
-            "check_artas_md5", po::value<std::string>(&check_artas_md5_hash),
-            "add and check ARTAS MD5 hashes (with record data), stating which categories to check, "
-            "e.g. 1,20,21,48")
-#endif
+                "filename", po::value<std::string>(&filename), "input file name")(
+                "definition_path", po::value<std::string>(&definition_path),
+                "path to jASTERIX definition files")(
+                "framing", po::value<std::string>(&framing),
+                "input framine format, as specified in the framing definitions."
+                " raw/netto is default")(
+                "frame_limit", po::value<int>(&jASTERIX::frame_limit),
+                "number of frames to process with framing, default -1, use -1 to disable.")(
+                "frame_chunk_size", po::value<int>(&jASTERIX::frame_chunk_size),
+                "number of frames to process in one chunk, default 10000, use -1 to disable.")(
+                "data_block_limit", po::value<int>(&jASTERIX::data_block_limit),
+                "number of data blocks to process without framing, default -1, use -1 to disable.")(
+                "data_block_chunk_size", po::value<int>(&jASTERIX::data_block_chunk_size),
+                "number of data blocks to process in one chunk, default 10000, use -1 to disable.")(
+                "data_write_size", po::value<int>(&jASTERIX::data_write_size),
+                "number of frame chunks to write in one file write, default 1, use -1 to disable.")(
+                "debug", po::bool_switch(&debug), "print debug output (only for small files)")(
+                "debug_include_framing", po::bool_switch(&debug_include_framing),
+                "print debug output including framing, debug still has to be set, disable per default")(
+                "single_thread", po::bool_switch(&jASTERIX::single_thread),
+                "process data in single thread")("only_cats", po::value<std::string>(&only_cats),
+                                                 "restricts categories to be decoded, e.g. 20,21.")(
+                "log_perf", po::bool_switch(&log_performance), "enable performance log after processing")
+        #if USE_OPENSSL
+            ("add_artas_md5", po::bool_switch(&jASTERIX::add_artas_md5_hash), "add ARTAS MD5 hashes")(
+                "check_artas_md5", po::value<std::string>(&check_artas_md5_hash),
+                "add and check ARTAS MD5 hashes (with record data), stating which categories to check, "
+                "e.g. 1,20,21,48")
+        #endif
             ("add_record_data", po::bool_switch(&jASTERIX::add_record_data),
              "add original record data in hex")("print", po::bool_switch(&print),
                                                 "print JSON output")(
@@ -266,9 +266,9 @@ int main(int argc, char** argv)
             else  // printing done via flag
 #if USE_OPENSSL
                 if (check_artas_md5_hash.size())
-                asterix.decodeFile(filename, check_callback);
-            else
-                asterix.decodeFile(filename, empty_callback);
+                    asterix.decodeFile(filename, check_callback);
+                else
+                    asterix.decodeFile(filename, empty_callback);
 
 #else
                 asterix.decodeFile(filename, empty_callback);
@@ -301,11 +301,11 @@ int main(int argc, char** argv)
         size_t num_records = asterix.numRecords();
 
         boost::posix_time::time_duration diff =
-            boost::posix_time::microsec_clock::local_time() - start_time;
+                boost::posix_time::microsec_clock::local_time() - start_time;
 
         string time_str = to_string(diff.hours()) + "h " + to_string(diff.minutes()) + "m " +
-                          to_string(diff.seconds()) + "s " +
-                          to_string(diff.total_milliseconds() % 1000) + "ms";
+                to_string(diff.seconds()) + "s " +
+                to_string(diff.total_milliseconds() % 1000) + "ms";
 
         double seconds = diff.total_milliseconds() / 1000.0;
 

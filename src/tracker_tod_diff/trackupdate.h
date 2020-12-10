@@ -22,10 +22,7 @@ public:
     bool hasAllSameAges () const;
     float getCommonAge() const;
 
-    bool operator==(const TrackUpdate& other) const
-    {
-        return sameData(other);
-    }
+    bool operator==(const TrackUpdate& other) const;
 
 //    struct HashFunction
 //    {

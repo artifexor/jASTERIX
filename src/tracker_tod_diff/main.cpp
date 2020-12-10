@@ -234,7 +234,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    loginf << "tracker tod diff: calculating first estimate";
+    loginf << "tracker tod diff: calculating estimate";
 
     float time_diff = global_tod_calc.calculate(-1, -1, 0.01); // first estimate, no time diff, pos window
 

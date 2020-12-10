@@ -1,4 +1,5 @@
 #include "trackupdate.h"
+#include "logger.h"
 
 #include <sstream>
 
@@ -388,4 +389,9 @@ float TrackUpdate::getCommonAge() const
 {
     assert (hasAllSameAges());
     return bvr_age_;
+}
+
+bool TrackUpdate::operator==(const TrackUpdate& other) const
+{
+    return sameData(other);
 }

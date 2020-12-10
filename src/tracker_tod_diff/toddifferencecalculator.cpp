@@ -127,14 +127,37 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
     for (auto& target_it : ref_updates_) // ref targets
     {
-        if (tst_updates_.count(target_it.first))
+        if (tst_updates_.count(target_it.first)) // has ta in tst data
         {
-            //            bool first_target_min_diff = true;
-            //            float target_min_diff{0}, target_max_diff{0};
+            // search for unique tst update
+            auto& tst_updates = tst_updates_.at(target_it.first);
 
-            //unordered_set<TrackUpdate, TrackUpdate::HashFunction> previous_refs;
+            vector<bool> tst_updates_acceptable;
+            //tst_updates_acceptable.reserve(tst_updates.size());
 
-            for (auto& ref_tu_it : target_it.second)
+            for (unsigned int cnt=0; cnt < tst_updates.size(); ++cnt)
+            {
+                auto& tst_up = tst_updates.at(cnt);
+
+                if (!tst_up.hasAllData() || !tst_up.hasAllSameAges())
+                {
+                    tst_updates_acceptable.push_back(false);
+                    continue;
+                }
+
+                // check if tst update unique
+                if (count(tst_updates.begin(), tst_updates.end(), tst_up) > 1)
+                {
+                    tst_updates_acceptable.push_back(false);
+                    continue;
+                }
+
+                tst_updates_acceptable.push_back(true);
+            }
+
+            assert (tst_updates_acceptable.size() == tst_updates.size());
+
+            for (auto& ref_tu_it : target_it.second) // iterate over ref data
             {
                 if (!ref_tu_it.hasAllData() || !ref_tu_it.hasAllSameAges())
                     continue;
@@ -143,21 +166,18 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
                 if (count(target_it.second.begin(), target_it.second.end(), ref_tu_it) > 1)
                     continue;
 
-                //                if (previous_refs.count(ref_tu_it)) // check ref for first occurance of data
-                //                    continue;
-                //                else
-                //                    previous_refs.insert(ref_tu_it);
-
                 TrackUpdate* unique_other = nullptr;
 
-                // search for unique tst update
-                for (auto& tst_tu_it : tst_updates_.at(target_it.first))
+                for (unsigned int cnt=0; cnt < tst_updates.size(); ++cnt)
                 {
-                    if (!tst_tu_it.hasAllData() || !tst_tu_it.hasAllSameAges())
+                    assert (cnt < tst_updates_acceptable.size());
+
+                    if (!tst_updates_acceptable.at(cnt))
                         continue;
 
-                    if (ref_tu_it.sameData(tst_tu_it))
-                        //&& ref_tu_it.getCommonAge() < 5.0 && tst_tu_it.getCommonAge() < 5.0)
+                    auto& tst_up = tst_updates.at(cnt);
+
+                    if (ref_tu_it.sameData(tst_up) && ref_tu_it.simliarPosition(tst_up, max_pos_diff))
                     {
                         if (unique_other)
                         {
@@ -165,27 +185,23 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
                             break;
                         }
                         else
-                            unique_other = &tst_tu_it;
+                            unique_other = &tst_up;
                     }
                 }
 
                 if (unique_other)
                 {
-                    if (max_pos_diff == -1 || ref_tu_it.simliarPosition(*unique_other, max_pos_diff))
-                    {
+                    float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getCommonAge();
+                    float tr_tod_tst = unique_other->tod() - unique_other->getCommonAge();
+                    float diff = tr_tod_ref - tr_tod_tst;
 
-                        float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getCommonAge();
-                        float tr_tod_tst = unique_other->tod() - unique_other->getCommonAge();
-                        float diff = tr_tod_ref - tr_tod_tst;
+                    if (diff < 0)
+                        diff += SECS_IN_DAY;
 
-                        if (diff < 0)
-                            diff += SECS_IN_DAY;
+                    //                    loginf << "suitable ref " << ref_tu_it.tod() << " tst " << unique_other->tod() << " diff "
+                    //                           << diff << " data '" << unique_other->dataStr() << "'";
 
-                        //                    loginf << "suitable ref " << ref_tu_it.tod() << " tst " << unique_other->tod() << " diff "
-                        //                           << diff << " data '" << unique_other->dataStr() << "'";
-
-                        time_differences.push_back(diff);
-                    }
+                    time_differences.push_back(diff);
                 }
             }
         }
@@ -241,130 +257,69 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
                << " med " << fixed << setprecision(3) << diff_med
                << " (" << timeStringFromDouble(diff_med) << ")";
 
-        loginf << "TodDifferenceCalculator: calculate: finding peaks";
+        loginf << "TodDifferenceCalculator: calculate: finding peak values";
 
-        auto peak = counts.end();
-        unsigned int peak_cnt = 0;
+        float max_cnt_tod = 0;
+        unsigned int max_cnt = 0;
 
-        for (unsigned int cnt=0; cnt < counts.size(); ++cnt)
-        {
-            auto current = counts.begin();
-            std::advance(current, cnt);
-
-            if (current->second > peak_cnt)
+        for (auto& cnt_it : counts)
+            if (cnt_it.second > max_cnt)
             {
-                peak = current;
-                peak_cnt = current->second;
+                max_cnt_tod = cnt_it.first;
+                max_cnt = cnt_it.second;
             }
-        }
 
         float peaks_sum = 0;
         unsigned int peaks_cnt_sum = 0;
 
-        if (peak != counts.end() && peak->second > time_differences.size()*0.05)
+
+        loginf << "TodDifferenceCalculator: calculate: #td " << time_differences.size()
+               << " mcnt " << max_cnt;
+
+        //threshold = (float) time_differences.size()*0.01;
+        threshold = (float) max_cnt*0.025;
+        float tod_threshold = 0.400;
+
+        loginf << "TodDifferenceCalculator: calculate: found max peak cnt " << max_cnt
+               << ", using threshold cnt " << threshold << " tod " << fixed << setprecision(3) << max_cnt_tod
+               << " +/- " << fixed << setprecision(3) << tod_threshold;
+
+        for (auto& cnt_it : counts)
         {
-            loginf << "TodDifferenceCalculator: calculate: found first peak "
-                   << fixed << setprecision(3) << peak->first
-                   << " cnt " << peak->second;
-
-            unsigned int peak1_cnt = peak->second;
-            peaks_sum += peak->first * peak->second; // tod * cnt
-            peaks_cnt_sum += peak->second;
-
-            auto peak_prev = peak;
-            std::advance(peak_prev, -1);
-
-            if (peak_prev != counts.end())
+            if (cnt_it.second > threshold && fabs(cnt_it.first-max_cnt_tod) < tod_threshold) // && fabs(cnt_it.first-max_cnt_tod) < tod_threshold
             {
-                peaks_sum += peak_prev->first * peak_prev->second; // tod * cnt
-                peaks_cnt_sum += peak_prev->second;
-            }
+                loginf << "TodDifferenceCalculator: calculate: adding peak value "
+                       << fixed << setprecision(3) << cnt_it.first
+                       << " cnt " << cnt_it.second;
 
-            auto peak_next = peak;
-            std::advance(peak_next, 1);
-
-            if (peak_next != counts.end())
-            {
-                peaks_sum += peak_next->first * peak_next->second; // tod * cnt
-                peaks_cnt_sum += peak_next->second;
-            }
-
-            if (peak_next != counts.end())
-                counts.erase(peak_next);
-
-            counts.erase(peak);
-
-            if (peak_prev != counts.end())
-                counts.erase(peak_prev);
-
-
-            for (auto& cnt_it : counts)
-            {
-                if (cnt_it.second >= threshold)
-                    loginf << "after first peak diff value " << fixed << setprecision(3) << cnt_it.first
-                           << " (" << timeStringFromDouble(cnt_it.first) << ")"
-                           << " cnt " << cnt_it.second;
-            }
-
-            // second peak
-            peak = counts.end();
-            peak_cnt = 0;
-
-            for (unsigned int cnt=0; cnt < counts.size(); ++cnt)
-            {
-                auto current = counts.begin();
-                std::advance(current, cnt);
-
-                if (current->second > peak1_cnt*0.1f && current->second > peak_cnt)
-                {
-                    peak = current;
-                    peak_cnt = current->second;
-                }
-            }
-
-            if (peak != counts.end())
-            {
-                loginf << "TodDifferenceCalculator: calculate: found second peak "
-                       << fixed << setprecision(3) << peak->first
-                       << " cnt " << peak->second;
-
-                peaks_sum += peak->first * peak->second; // tod * cnt
-                peaks_cnt_sum += peak->second;
-
-                auto peak_prev = peak;
-                std::advance(peak_prev, -1);
-
-                if (peak_prev != counts.end())
-                {
-                    peaks_sum += peak_prev->first * peak_prev->second; // tod * cnt
-                    peaks_cnt_sum += peak_prev->second;
-                    counts.erase(peak_prev);
-                }
-
-                auto peak_next = peak;
-                std::advance(peak_next, 1);
-
-                if (peak_next != counts.end())
-                {
-                    peaks_sum += peak_next->first * peak_next->second; // tod * cnt
-                    peaks_cnt_sum += peak_next->second;
-                    counts.erase(peak_next);
-                }
-
-                counts.erase(peak);
-            }
-
-            if (peaks_sum != 0)
-            {
-                float new_peak = peaks_sum / (float) peaks_cnt_sum;
-                loginf << "TodDifferenceCalculator: calculate: calculated peak-based value "
-                       << fixed << setprecision(3) << new_peak;
-                return new_peak;
+                peaks_sum += cnt_it.first * cnt_it.second; // tod * cnt
+                peaks_cnt_sum += cnt_it.second;
             }
         }
 
-        loginf << "TodDifferenceCalculator: calculate: no peaks found, returning median";
-        return diff_med;
+        if (peaks_sum != 0)
+        {
+            float new_peak = peaks_sum / (float) peaks_cnt_sum;
+
+            float var = 0;
+            for (auto& cnt_it : counts)
+            {
+                if (fabs(cnt_it.first-max_cnt_tod) < tod_threshold) // && cnt_it.second > threshold
+                    var += cnt_it.second*(pow(cnt_it.first - new_peak,2));
+            }
+            var /= (float)peaks_cnt_sum;
+            float sd = sqrt(var);
+
+            loginf << "TodDifferenceCalculator: calculate: calculated peak-based value "
+                   << fixed << setprecision(3) << new_peak << " std.dev. " << fixed << setprecision(3) << sd;
+
+            return new_peak;
+        }
+        else
+        {
+            loginf << "TodDifferenceCalculator: calculate: no peaks found, returning median";
+            return diff_med;
+        }
     }
     else
         loginf << "TodDifferenceCalculator: calculate: no suitable data found";
