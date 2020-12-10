@@ -21,6 +21,8 @@ public:
     bool hasAllData () const;
     bool hasAllSameAges () const;
     float getCommonAge() const;
+    float getLowestAge() const;
+    float getHighestAge() const;
 
     bool operator==(const TrackUpdate& other) const;
 
@@ -74,6 +76,9 @@ protected:
     bool has_mhg_ {false}; // #7: Magnetic Heading
     double mhg_ {0};
     float mhg_age_ {0};
+
+    float lowest_age_{-1};
+    float highest_age_{-1};
 
     std::string data_str_;
 };

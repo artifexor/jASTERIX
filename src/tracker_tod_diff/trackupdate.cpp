@@ -252,6 +252,8 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
     {
         bvr_ = adds.at("BVR").at("Barometric Vertical Rate");
         bvr_age_ = ages.at("BVR").at("Age");
+        lowest_age_ = bvr_age_;
+        highest_age_ = bvr_age_;
 
         ss << "bvr " << bvr_ << " age " << bvr_age_;
     }
@@ -263,6 +265,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
     {
         fss_ = adds.at("FSS").at("Altitude");
         fss_age_ = ages.at("FSS").at("Age");
+
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, fss_age_);
+            highest_age_ = max(highest_age_, fss_age_);
+        }
+        else
+        {
+            lowest_age_ = fss_age_;
+            highest_age_ = fss_age_;
+        }
 
         if (ss.str().size())
             ss << " ";
@@ -277,6 +290,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
         iar_ = adds.at("IAR").at("Indicated Air Speed");
         iar_age_ = ages.at("IAR").at("Age");
 
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, iar_age_);
+            highest_age_ = max(highest_age_, iar_age_);
+        }
+        else
+        {
+            lowest_age_ = iar_age_;
+            highest_age_ = iar_age_;
+        }
+
         if (ss.str().size())
             ss << " ";
         ss << "iar " << iar_ << " age " << iar_age_;
@@ -289,6 +313,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
     {
         mac_ = adds.at("MAC").at("Mach Number");
         mac_age_ = ages.at("MAC").at("Age");
+
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, mac_age_);
+            highest_age_ = max(highest_age_, mac_age_);
+        }
+        else
+        {
+            lowest_age_ = mac_age_;
+            highest_age_ = mac_age_;
+        }
 
         if (ss.str().size())
             ss << " ";
@@ -303,6 +338,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
         mda_ = record.at("060").at("Mode-3/A reply");
         mda_age_ = ages.at("MDA").at("Age");
 
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, mda_age_);
+            highest_age_ = max(highest_age_, mda_age_);
+        }
+        else
+        {
+            lowest_age_ = mda_age_;
+            highest_age_ = mda_age_;
+        }
+
         if (ss.str().size())
             ss << " ";
         ss << "mda " << mda_ << " age " << mda_age_;
@@ -316,6 +362,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
         mfl_ = record.at("136").at("Measured Flight Level");
         mfl_age_ = ages.at("MFL").at("Age");
 
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, mfl_age_);
+            highest_age_ = max(highest_age_, mfl_age_);
+        }
+        else
+        {
+            lowest_age_ = mfl_age_;
+            highest_age_ = mfl_age_;
+        }
+
         if (ss.str().size())
             ss << " ";
         ss << "mfl " << mfl_ << " age " << mfl_age_;
@@ -328,6 +385,17 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
     {
         mhg_ = adds.at("MHG").at("Magnetic Heading");
         mhg_age_ = ages.at("MHG").at("Age");
+
+        if (lowest_age_ != -1)
+        {
+            lowest_age_ = min(lowest_age_, mhg_age_);
+            highest_age_ = max(highest_age_, mhg_age_);
+        }
+        else
+        {
+            lowest_age_ = mhg_age_;
+            highest_age_ = mhg_age_;
+        }
 
         if (ss.str().size())
             ss << " ";
@@ -346,11 +414,11 @@ bool TrackUpdate::sameData (const TrackUpdate& other) const
     if (max_pos_diff_ != -1 && !simliarPosition(other, max_pos_diff_))
         return false;
 
-//    return hasAllData() && other.hasAllData() && bvr_ == other.bvr_
-//            && fss_ == other.fss_ && iar_ == other.iar_ && mac_ == other.mac_ && mda_ == other.mda_
-//            && mfl_ == other.mfl_ && mhg_ == other.mhg_;
+    return hasAllData() && other.hasAllData() && bvr_ == other.bvr_
+            && fss_ == other.fss_ && iar_ == other.iar_ && mac_ == other.mac_ && mda_ == other.mda_
+            && mfl_ == other.mfl_ && mhg_ == other.mhg_;
 
-    return hasAllData() && other.hasAllData() && mhg_ == other.mhg_;
+    //return hasAllData() && other.hasAllData() && mhg_ == other.mhg_;
 }
 
 bool TrackUpdate::simliarPosition(const TrackUpdate& other, float max_pos_diff) const
@@ -390,6 +458,19 @@ float TrackUpdate::getCommonAge() const
     assert (hasAllSameAges());
     return bvr_age_;
 }
+
+float TrackUpdate::getLowestAge() const
+{
+    assert (lowest_age_ != -1);
+    return lowest_age_;
+}
+
+float TrackUpdate::getHighestAge() const
+{
+    assert (highest_age_ != -1);
+    return highest_age_;
+}
+
 
 bool TrackUpdate::operator==(const TrackUpdate& other) const
 {

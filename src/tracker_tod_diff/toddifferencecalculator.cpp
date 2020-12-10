@@ -139,7 +139,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
             {
                 auto& tst_up = tst_updates.at(cnt);
 
-                if (!tst_up.hasAllData() || !tst_up.hasAllSameAges())
+                if (!tst_up.hasAllData())
                 {
                     tst_updates_acceptable.push_back(false);
                     continue;
@@ -159,7 +159,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
             for (auto& ref_tu_it : target_it.second) // iterate over ref data
             {
-                if (!ref_tu_it.hasAllData() || !ref_tu_it.hasAllSameAges())
+                if (!ref_tu_it.hasAllData())
                     continue;
 
                 // check if ref update unique
@@ -191,8 +191,8 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
                 if (unique_other)
                 {
-                    float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getCommonAge();
-                    float tr_tod_tst = unique_other->tod() - unique_other->getCommonAge();
+                    float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getHighestAge();
+                    float tr_tod_tst = unique_other->tod() - unique_other->getHighestAge();
                     float diff = tr_tod_ref - tr_tod_tst;
 
                     if (diff < 0)
@@ -276,9 +276,9 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
         loginf << "TodDifferenceCalculator: calculate: #td " << time_differences.size()
                << " mcnt " << max_cnt;
 
-        //threshold = (float) time_differences.size()*0.01;
-        threshold = (float) max_cnt*0.025;
-        float tod_threshold = 0.400;
+        threshold = (float) time_differences.size()*0.02;
+        //threshold = (float) max_cnt*0.05;
+        float tod_threshold = 0.125;
 
         loginf << "TodDifferenceCalculator: calculate: found max peak cnt " << max_cnt
                << ", using threshold cnt " << threshold << " tod " << fixed << setprecision(3) << max_cnt_tod
@@ -286,7 +286,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
         for (auto& cnt_it : counts)
         {
-            if (cnt_it.second > threshold && fabs(cnt_it.first-max_cnt_tod) < tod_threshold) // && fabs(cnt_it.first-max_cnt_tod) < tod_threshold
+            if (cnt_it.second > threshold)
             {
                 loginf << "TodDifferenceCalculator: calculate: adding peak value "
                        << fixed << setprecision(3) << cnt_it.first
@@ -304,7 +304,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
             float var = 0;
             for (auto& cnt_it : counts)
             {
-                if (fabs(cnt_it.first-max_cnt_tod) < tod_threshold) // && cnt_it.second > threshold
+                if (cnt_it.second > threshold) //  && fabs(cnt_it.first-max_cnt_tod) <= tod_threshold
                     var += cnt_it.second*(pow(cnt_it.first - new_peak,2));
             }
             var /= (float)peaks_cnt_sum;
