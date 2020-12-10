@@ -3,13 +3,15 @@
 
 #include "json.hpp"
 
+#include <unordered_set>
+
 class TrackUpdate
 {
 public:
     TrackUpdate(nlohmann::json& record);
 
     bool sameData (const TrackUpdate& other) const;
-    bool simliarPosition(const TrackUpdate& other) const;
+    bool simliarPosition(const TrackUpdate& other, float max_pos_diff) const;
 
     float tod() const;
 
@@ -19,6 +21,28 @@ public:
     bool hasAllData () const;
     bool hasAllSameAges () const;
     float getCommonAge() const;
+
+    bool operator==(const TrackUpdate& other) const
+    {
+        return sameData(other);
+    }
+
+//    struct HashFunction
+//    {
+//        size_t operator()(const TrackUpdate& t) const
+//        {
+//            assert (t.hasAllData());
+
+//            return std::hash<double>()(t.bvr_) ^ std::hash<double>()(t.fss_)
+//                    ^ std::hash<double>()(t.iar_) ^ std::hash<double>()(t.mac_)
+//                    ^ std::hash<double>()(t.mda_) ^ std::hash<double>()(t.mfl_)
+//                    ^ std::hash<double>()(t.mhg_);
+//        }
+//    };
+
+    static float max_t_diff_; // -1 for disabled
+    static float estimated_t_diff_; // -1 for disabled
+    static float max_pos_diff_; // -1 for disabled
 
 protected:
     float tod_;

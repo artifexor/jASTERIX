@@ -119,25 +119,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    boost::posix_time::ptime total_start_time = boost::posix_time::microsec_clock::local_time();
+
     std::vector<unsigned int> cat_list {62};
-//    if (only_cats.size())
-//    {
-//        std::vector<std::string> cat_strings;
-//        split(only_cats, ',', cat_strings);
-
-//        int cat;
-
-//        for (auto& cat_it : cat_strings)
-//        {
-//            cat = std::atoi(cat_it.c_str());
-//            if (cat < 1 || cat > 255)
-//            {
-//                logerr << "tracker tod diff: impossible cat value '" << cat_it << "'" << logendl;
-//                return -1;
-//            }
-//            cat_list.push_back(static_cast<unsigned int>(cat));
-//        }
-//    }
 
     // check if basic configuration works
     try
@@ -250,7 +234,33 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    global_tod_calc.calculate();
+    loginf << "tracker tod diff: calculating first estimate";
+
+    float time_diff = global_tod_calc.calculate(-1, -1, 0.01); // first estimate, no time diff, pos window
+
+    loginf << "tracker tod diff: got estimate: time diff " << fixed << setprecision(3) << time_diff
+           << " (" << timeStringFromDouble(time_diff) << ")";;
+
+//    if (time_diff != -1)
+//    {
+//        loginf << "tracker tod diff: calculating second estimate";
+
+//        time_diff = global_tod_calc.calculate(2.5, time_diff, -1); // second estimate with time diff & no pos window
+
+//        loginf << "tracker tod diff: second estimate: time diff " << fixed << setprecision(3) << time_diff
+//               << " (" << timeStringFromDouble(time_diff) << ")";
+//    }
+//    else
+//        loginf << "tracker tod diff: not able to calculate second estimate";
+
+    boost::posix_time::time_duration diff =
+            boost::posix_time::microsec_clock::local_time() - total_start_time;
+
+    string time_str = to_string(diff.hours()) + "h " + to_string(diff.minutes()) + "m " +
+            to_string(diff.seconds()) + "s " +
+            to_string(diff.total_milliseconds() % 1000) + "ms";
+
+    loginf << "tracker tod diff: done after " << time_str << logendl;
 
     loginf << "tracker tod diff: shutdown" << logendl;
 

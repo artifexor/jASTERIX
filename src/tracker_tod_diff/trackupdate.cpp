@@ -4,6 +4,10 @@
 
 using namespace std;
 
+float TrackUpdate::max_t_diff_{-1};
+float TrackUpdate::estimated_t_diff_{-1};
+float TrackUpdate::max_pos_diff_{-1};
+
 TrackUpdate::TrackUpdate(nlohmann::json& record)
 {
     tod_ = record.at("070").at("Time Of Track Information");
@@ -335,14 +339,22 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
 
 bool TrackUpdate::sameData (const TrackUpdate& other) const
 {
-    return hasAllData() && other.hasAllData() && bvr_ == other.bvr_
-            && fss_ == other.fss_ && iar_ == other.iar_ && mac_ == other.mac_ && mda_ == other.mda_
-            && mfl_ == other.mfl_ && mhg_ == other.mhg_; //&& simliarPosition(other)
+    if (max_t_diff_ != -1 && fabs(tod_-other.tod_-estimated_t_diff_) > max_t_diff_)
+        return false;
+
+    if (max_pos_diff_ != -1 && !simliarPosition(other, max_pos_diff_))
+        return false;
+
+//    return hasAllData() && other.hasAllData() && bvr_ == other.bvr_
+//            && fss_ == other.fss_ && iar_ == other.iar_ && mac_ == other.mac_ && mda_ == other.mda_
+//            && mfl_ == other.mfl_ && mhg_ == other.mhg_;
+
+    return hasAllData() && other.hasAllData() && mhg_ == other.mhg_;
 }
 
-bool TrackUpdate::simliarPosition(const TrackUpdate& other) const
+bool TrackUpdate::simliarPosition(const TrackUpdate& other, float max_pos_diff) const
 {
-    return sqrt(pow(latitude_-other.latitude_, 2)+pow(longitude_-other.longitude_, 2)) < 0.01;
+    return sqrt(pow(latitude_-other.latitude_, 2)+pow(longitude_-other.longitude_, 2)) < max_pos_diff;
 }
 
 float TrackUpdate::tod() const
@@ -357,7 +369,8 @@ std::string TrackUpdate::dataStr() const
 
 bool TrackUpdate::hasAllData () const
 {
-    return has_bvr_ && has_fss_ && has_iar_ && has_mac_ && has_mda_ && has_mfl_ && has_mhg_;
+    //return has_bvr_ && has_fss_ && has_iar_ && has_mac_ && has_mda_ && has_mfl_ && has_mhg_;
+    return has_mhg_;
 }
 
 bool TrackUpdate::hasAllSameAges () const
@@ -365,8 +378,10 @@ bool TrackUpdate::hasAllSameAges () const
     if (!hasAllData())
         return false;
 
-    return bvr_age_ == fss_age_ && bvr_age_ == iar_age_ && bvr_age_ == mac_age_ && bvr_age_ == mda_age_
-            && bvr_age_ == mfl_age_ && bvr_age_ == mhg_age_;
+//    return bvr_age_ == fss_age_ && bvr_age_ == iar_age_ && bvr_age_ == mac_age_ && bvr_age_ == mda_age_
+//            && bvr_age_ == mfl_age_ && bvr_age_ == mhg_age_;
+
+    return bvr_age_ == mhg_age_;
 }
 
 float TrackUpdate::getCommonAge() const

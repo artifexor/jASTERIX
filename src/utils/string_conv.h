@@ -20,6 +20,8 @@
 
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <sstream>
 
 #include "json.hpp"
 
@@ -35,5 +37,32 @@ extern std::vector<std::string>& split(const std::string& s, char delim,
 extern std::string toString(const nlohmann::json& j);
 
 extern bool isASCII(const std::string& s);
+
+inline std::string timeStringFromDouble(double seconds, bool milliseconds = true)
+{
+    int hours, minutes;
+    std::ostringstream out;
+
+    if (seconds < 0)
+    {
+        out << "-";
+        seconds *= -1;
+    }
+
+    hours = static_cast<int>(seconds / 3600.0);
+    minutes = static_cast<int>(static_cast<double>(static_cast<int>(seconds) % 3600) / 60.0);
+    seconds = seconds - hours * 3600.0 - minutes * 60.0;
+
+    out << std::fixed << std::setw(2) << std::setfill('0') << hours << ":" << std::setw(2)
+        << std::setfill('0') << minutes << ":";
+
+    if (milliseconds)
+        out << std::setw(6) << std::setfill('0') << std::setprecision(3) << seconds;
+    else
+        out << std::setw(2) << std::setfill('0') << std::setprecision(0)
+            << static_cast<int>(seconds);
+
+    return out.str();
+}
 
 #endif  // STRING_CONV_H

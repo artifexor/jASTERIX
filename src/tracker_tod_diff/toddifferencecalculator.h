@@ -13,7 +13,7 @@ public:
     void process (std::unique_ptr<nlohmann::json> data_chunk, bool ref, bool framing);
     void processRecords (nlohmann::json& records, bool ref);
 
-    void calculate ();
+    float calculate (float max_t_diff=-1, float estimated_t_diff=-1, float max_pos_diff=-1); // -1 for disabled, other for final calc, returns median
 
 protected:
     std::map<unsigned int, std::vector<TrackUpdate>> ref_updates_;
