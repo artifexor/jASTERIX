@@ -1,4 +1,4 @@
-#ifndef TRACKUPDATE_H
+﻿#ifndef TRACKUPDATE_H
 #define TRACKUPDATE_H
 
 #include "json.hpp"
@@ -13,7 +13,18 @@ public:
     bool sameData (const TrackUpdate& other) const;
     bool simliarPosition(const TrackUpdate& other, float max_pos_diff) const;
 
+    unsigned int ta() const;
+    unsigned int tn() const;
     float tod() const;
+
+
+    double bvr() const;
+    double fss() const;
+    double iar() const;
+    double mac() const;
+    double mda() const;
+    double mfl() const;
+    double mhg() const;
 
     std::string dataStr() const;
 
@@ -43,8 +54,14 @@ public:
     static float estimated_t_diff_; // -1 for disabled
     static float max_pos_diff_; // -1 for disabled
 
+
+
+
 protected:
     float tod_;
+
+    unsigned int ta_;
+    unsigned int tn_;
 
     double latitude_ {0};
     double longitude_ {0};

@@ -125,6 +125,8 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
     vector<float> time_differences;
 
+    //loginf << "ta;ref_tod;ref_tn;ref_age;tst_tod;tst_tn;tst_age;diff;bvr;fss;iar;mac;mda;mfl;mhg";
+
     for (auto& target_it : ref_updates_) // ref targets
     {
         if (tst_updates_.count(target_it.first)) // has ta in tst data
@@ -139,7 +141,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
             {
                 auto& tst_up = tst_updates.at(cnt);
 
-                if (!tst_up.hasAllData())
+                if (!tst_up.hasAllData() || !tst_up.hasAllSameAges() || tst_up.getCommonAge() >= 4)
                 {
                     tst_updates_acceptable.push_back(false);
                     continue;
@@ -159,7 +161,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
             for (auto& ref_tu_it : target_it.second) // iterate over ref data
             {
-                if (!ref_tu_it.hasAllData())
+                if (!ref_tu_it.hasAllData() || !ref_tu_it.hasAllSameAges() || ref_tu_it.getCommonAge() >= 4)
                     continue;
 
                 // check if ref update unique
@@ -191,15 +193,33 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
                 if (unique_other)
                 {
-                    float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getHighestAge();
-                    float tr_tod_tst = unique_other->tod() - unique_other->getHighestAge();
+                    float tr_tod_ref = ref_tu_it.tod() - ref_tu_it.getCommonAge();
+                    float tr_tod_tst = unique_other->tod() - unique_other->getCommonAge();
                     float diff = tr_tod_ref - tr_tod_tst;
 
                     if (diff < 0)
                         diff += SECS_IN_DAY;
 
-                    //                    loginf << "suitable ref " << ref_tu_it.tod() << " tst " << unique_other->tod() << " diff "
-                    //                           << diff << " data '" << unique_other->dataStr() << "'";
+//                    loginf << ref_tu_it.ta() <<";"
+//                           << fixed << setprecision(3) << ref_tu_it.tod() << ";"
+//                           << ref_tu_it.tn() << ";"
+//                           << ref_tu_it.getCommonAge() << ";"
+//                           << fixed << setprecision(3) << unique_other->tod() << ";"
+//                           << unique_other->tn() << ";"
+//                           << unique_other->getCommonAge() << ";"
+//                           << fixed << setprecision(3) << diff << ";"
+//                           << ref_tu_it.bvr() << ";"
+//                           << ref_tu_it.fss() << ";"
+//                           << ref_tu_it.iar() << ";"
+//                           << ref_tu_it.mac() << ";"
+//                           << ref_tu_it.mda() << ";"
+//                           << ref_tu_it.mfl() << ";"
+//                           << ref_tu_it.mhg();
+
+//                    loginf << "suitable ref " << hex << ref_tu_it.ta() << " " << ref_tu_it.tod()
+//                           << " age " << ref_tu_it.getCommonAge()
+//                           << " tst " << unique_other->tod() << " age " << ref_tu_it.getCommonAge()
+//                           << " diff " << diff << " data '" << unique_other->dataStr() << "'";
 
                     time_differences.push_back(diff);
                 }
@@ -224,7 +244,7 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
 
         diff_avg  /= (float)time_differences.size();
 
-        unsigned int threshold = (float) time_differences.size()*0.005;
+        unsigned int threshold = (float) time_differences.size()*0.001;
 
         for (auto& cnt_it : counts)
         {
@@ -276,20 +296,28 @@ float TodDifferenceCalculator::calculate (float max_t_diff, float estimated_t_di
         loginf << "TodDifferenceCalculator: calculate: #td " << time_differences.size()
                << " mcnt " << max_cnt;
 
-        threshold = (float) time_differences.size()*0.02;
-        //threshold = (float) max_cnt*0.05;
-        float tod_threshold = 0.125;
+        //threshold = (float) time_differences.size()*0.01;
+        //threshold = (float) max_cnt*0.1;
+        threshold = 0;
+//        float tod_min = int(max_cnt_tod*4)/4.0f;
+//        float tod_max = tod_min+0.250;
+
+        float tod_min = max_cnt_tod-0.04;
+        float tod_max = max_cnt_tod+0.04;
 
         loginf << "TodDifferenceCalculator: calculate: found max peak cnt " << max_cnt
-               << ", using threshold cnt " << threshold << " tod " << fixed << setprecision(3) << max_cnt_tod
-               << " +/- " << fixed << setprecision(3) << tod_threshold;
+               << ", using threshold cnt " << threshold << " tod " << fixed << setprecision(3) << max_cnt_tod;
 
         for (auto& cnt_it : counts)
         {
+            if (cnt_it.first < tod_min || cnt_it.first > tod_max)
+                continue;
+
             if (cnt_it.second > threshold)
             {
                 loginf << "TodDifferenceCalculator: calculate: adding peak value "
                        << fixed << setprecision(3) << cnt_it.first
+                       << " (" << timeStringFromDouble(cnt_it.first) << ")"
                        << " cnt " << cnt_it.second;
 
                 peaks_sum += cnt_it.first * cnt_it.second; // tod * cnt

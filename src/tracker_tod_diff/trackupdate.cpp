@@ -12,6 +12,12 @@ float TrackUpdate::max_pos_diff_{-1};
 TrackUpdate::TrackUpdate(nlohmann::json& record)
 {
     tod_ = record.at("070").at("Time Of Track Information");
+    ta_ = record.at("380").at("ADR").at("Target Address");
+
+    assert (record.contains("040"));
+    assert (record.at("040").contains("Track Number"));
+    tn_ = record.at("040").at("Track Number");
+
     latitude_ = record.at("105").at("Latitude");
     longitude_ = record.at("105").at("Longitude");
 
@@ -408,6 +414,8 @@ TrackUpdate::TrackUpdate(nlohmann::json& record)
 
 bool TrackUpdate::sameData (const TrackUpdate& other) const
 {
+    assert (ta_ == other.ta_);
+
     if (max_t_diff_ != -1 && fabs(tod_-other.tod_-estimated_t_diff_) > max_t_diff_)
         return false;
 
@@ -423,6 +431,7 @@ bool TrackUpdate::sameData (const TrackUpdate& other) const
 
 bool TrackUpdate::simliarPosition(const TrackUpdate& other, float max_pos_diff) const
 {
+    assert (ta_ == other.ta_);
     return sqrt(pow(latitude_-other.latitude_, 2)+pow(longitude_-other.longitude_, 2)) < max_pos_diff;
 }
 
@@ -438,8 +447,8 @@ std::string TrackUpdate::dataStr() const
 
 bool TrackUpdate::hasAllData () const
 {
-    //return has_bvr_ && has_fss_ && has_iar_ && has_mac_ && has_mda_ && has_mfl_ && has_mhg_;
-    return has_mhg_;
+    return has_bvr_ && has_fss_ && has_iar_ && has_mac_ && has_mda_ && has_mfl_ && has_mhg_;
+    //return has_mhg_;
 }
 
 bool TrackUpdate::hasAllSameAges () const
@@ -475,4 +484,56 @@ float TrackUpdate::getHighestAge() const
 bool TrackUpdate::operator==(const TrackUpdate& other) const
 {
     return sameData(other);
+}
+
+unsigned int TrackUpdate::tn() const
+{
+    return tn_;
+}
+
+double TrackUpdate::bvr() const
+{
+    assert (has_bvr_);
+    return bvr_;
+}
+
+double TrackUpdate::fss() const
+{
+    assert (has_fss_);
+    return fss_;
+}
+
+double TrackUpdate::iar() const
+{
+    assert (has_iar_);
+    return iar_;
+}
+
+double TrackUpdate::mac() const
+{
+    assert (has_mac_);
+    return mac_;
+}
+
+double TrackUpdate::mda() const
+{
+    assert (has_mda_);
+    return mda_;
+}
+
+double TrackUpdate::mfl() const
+{
+    assert (has_mfl_);
+    return mfl_;
+}
+
+double TrackUpdate::mhg() const
+{
+    assert (has_mhg_);
+    return mhg_;
+}
+
+unsigned int TrackUpdate::ta() const
+{
+    return ta_;
 }
